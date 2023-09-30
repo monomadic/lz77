@@ -1,17 +1,14 @@
-use std::io::{Read, Seek, Write};
+use std::io::Read;
 
 /// Error type returned by decompress() and helper methods.
 type Error = Box<dyn std::error::Error>;
 
-/// Decompress a data stream from the reader into the writer.
+/// Decompress a data stream from the reader.
 ///
-/// Reads compressed data from `reader` and writes the decompressed data to `writer`.
+/// Reads compressed data from `reader` and return the result as an array of bytes.
 ///
 /// Returns a `Result` with a decompression error if there are any issues reading or writing data.
-pub fn decompress<R: Read, W: Read + Write + Seek>(
-    mut reader: R,
-    mut writer: W,
-) -> Result<(), Error> {
+pub fn decompress<R: Read>(mut reader: R) -> Result<Vec<u8>, Error> {
     let mut dictionary = Vec::new();
 
     loop {
@@ -38,8 +35,7 @@ pub fn decompress<R: Read, W: Read + Write + Seek>(
         }
     }
 
-    writer.write_all(&dictionary)?;
-    Ok(())
+    Ok(dictionary)
 }
 
 /// Fetch bytes from the decompression dictionary.
@@ -240,14 +236,9 @@ mod tests {
 
     #[test]
     fn test_deflate_file() -> Result<(), Error> {
-        let input = File::open("tests/data/000.compressed")?;
-        let mut output = Cursor::new(Vec::new());
-
-        decompress(input, &mut output)?;
-
         Ok(assert_eq!(
+            decompress(File::open("tests/data/000.compressed")?)?,
             std::fs::read("tests/data/000.decompressed")?,
-            output.into_inner(),
         ))
     }
 }
