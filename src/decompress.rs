@@ -1,8 +1,13 @@
 use std::io::{Read, Seek, Write};
 
+/// Error type returned by decompress() and helper methods.
 type Error = Box<dyn std::error::Error>;
 
-/// Deflate as a stream
+/// Decompress a data stream from the reader into the writer.
+///
+/// Reads compressed data from `reader` and writes the decompressed data to `writer`.
+///
+/// Returns a `Result` with a decompression error if there are any issues reading or writing data.
 pub fn decompress<R: Read, W: Read + Write + Seek>(
     mut reader: R,
     mut writer: W,
@@ -37,6 +42,19 @@ pub fn decompress<R: Read, W: Read + Write + Seek>(
     Ok(())
 }
 
+/// Fetch bytes from the decompression dictionary.
+///
+/// Copies `length` bytes starting at `offset` in `dictionary` into a new Vec.
+/// Returns an error if offset or length are invalid.
+#[derive(Debug, PartialEq)]
+enum Offset {
+    /// A literal data chunk of length `length` bytes.
+    Literal { length: usize },
+    /// A data chunk matching previously decompressed data.
+    /// `length` bytes starting at `offset` in the decompression dictionary.
+    Dictionary { length: usize, offset: usize },
+}
+
 /// Fetch a series of bytes from a the dictionary at a given offset
 fn fetch_offset(dictionary: &[u8], length: usize, offset: usize) -> Result<Vec<u8>, Error> {
     if offset > dictionary.len() {
@@ -56,13 +74,9 @@ fn fetch_offset(dictionary: &[u8], length: usize, offset: usize) -> Result<Vec<u
     Ok(result)
 }
 
-#[derive(Debug, PartialEq)]
-enum Offset {
-    Literal { length: usize },
-    Dictionary { length: usize, offset: usize },
-}
-
-/// Control bytes are used by the compression algorithm to determine what kind of data is in the next chunk.
+/// Read the next compressed data chunk's control bytes.
+///
+/// Parses the 1-3 control bytes to determine the next Offset variant.
 fn get_control_bytes<R: Read>(reader: &mut R) -> Result<Offset, Error> {
     let cb = read_u8(reader)?;
     let q = q_mask(cb) as usize;
@@ -91,6 +105,7 @@ fn get_control_bytes<R: Read>(reader: &mut R) -> Result<Offset, Error> {
     })
 }
 
+/// Bitmask the control byte to get the length variant code.
 fn cb_mask(i: u8) -> u8 {
     if i | 0b0001_1111 == 0b0001_1111 {
         return 1;
@@ -127,7 +142,7 @@ fn cb_mask(i: u8) -> u8 {
     panic!("Unknown control byte. [{:08b}:{:02X}]", i, i);
 }
 
-/// bitwise mask to determine 'Q'
+/// Bitmask the control byte to get the dictionary offset code.
 fn q_mask(i: u8) -> u8 {
     i & 0b0001_1111
 }

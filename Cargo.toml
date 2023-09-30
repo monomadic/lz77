@@ -1,6 +1,13 @@
 [package]
 name = "lz77"
 version = "0.1.0"
+description = "Zero dependency pure rust implementation of the FastLZ LZ77 compression algorithm."
 edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/monomadic/lz77"
+homepage = "https://github.com/monomadic/lz77"
+authors = ["monomadic <themonomadic@protonmail.com>"]
+keywords = ["compression", "decompression", "lz77", "fastlz"]
+categories = ["encoding", "compression"]
 
 [dependencies]
